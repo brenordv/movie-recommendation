@@ -11,10 +11,6 @@ RUN apt-get update \
        curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Setup a non-root user
-RUN groupadd --system --gid 999 nonroot \
- && useradd --system --gid 999 --uid 999 --create-home nonroot
-
 # Install the project into `/app`
 WORKDIR /app
 
@@ -37,13 +33,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Installing separately from its dependencies allows optimal layer caching
 COPY . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev
+    uv sync --locked --no-dev \
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
-
-# Drop privileges for runtime
-USER nonroot
 
 # Reset the entrypoint, don't invoke `uv`
 ENTRYPOINT []

@@ -1,4 +1,4 @@
-FROM ghcr.io/astral/uv:python3.11-trixie-slim
+FROM astral/uv:python3.11-trixie-slim
 
 # Setup a non-root user
 RUN groupadd --system --gid 999 nonroot \

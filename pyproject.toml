@@ -1,0 +1,13 @@
+[project]
+name = "movie-recommendation"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.14"
+dependencies = [
+    "raccoontools==1.2.0",
+    "dotenv==0.9.9",
+    "requests==2.32.5",
+    "psycopg2==2.9.11",
+    "uvicorn==0.38.0",
+    "fastapi==0.121.2"
+]

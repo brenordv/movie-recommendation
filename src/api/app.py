@@ -35,7 +35,7 @@ def _is_request_valid(item: WatchedMovieRequest) -> bool:
             and item.letterboxd_uri.strip() != ""
     )
 
-@app.post("/watched")
+@app.post("/api/watched")
 async def watched(
         item: WatchedMovieRequest,
         request: Request):

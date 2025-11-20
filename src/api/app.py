@@ -47,6 +47,11 @@ async def watched(
 
     logger.info(f"Received request from {client_ip}: {item}")
 
+    return_data = {
+        "title": item.title,
+        "year": item.year,
+    }
+
     try:
         logger.info(f"Processing request for movie: {item.title} ({item.year})")
 
@@ -59,17 +64,17 @@ async def watched(
 
         if result == ImportResult.SUCCESS:
             logger.info(f"Successfully processed request for movie: {item.title} ({item.year})")
-            return JSONResponse(status_code=status.HTTP_201_CREATED, content={"result": "success"})
+            return JSONResponse(status_code=status.HTTP_201_CREATED, content={"result": "success", "data": return_data})
         elif result == ImportResult.ALREADY_EXISTS:
             logger.info(f"Movie already exists in database: {item.title} ({item.year})")
-            return JSONResponse(status_code=status.HTTP_200_OK, content={"result": "already_exists"})
+            return JSONResponse(status_code=status.HTTP_200_OK, content={"result": "already_exists", "data": return_data})
         else:
             logger.error(f"Error processing request for movie: {item.title} ({item.year})")
-            return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"result": "error"})
+            return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"result": "error", "data": return_data})
 
     except Exception as e:
         logger.error(f"Error processing request for movie: {item.title} ({item.year}): {e}")
-        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"result": f"error: {e}"})
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"result": "error", "data": return_data, "error": str(e)})
 
 
 @app.get("/api/health")

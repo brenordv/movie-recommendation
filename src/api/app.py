@@ -1,7 +1,7 @@
 import traceback
 from datetime import datetime
 
-from fastapi import FastAPI, HTTPException, Query, Request, Response, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from simple_log_factory.log_factory import log_factory

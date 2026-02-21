@@ -1,16 +1,19 @@
 from pathlib import Path
 from datetime import datetime
 
+from opentelemetry import trace
 from raccoontools.generators.file_ops_generators import read_csv
-from simple_log_factory.log_factory import log_factory
 
 from src.core.movie_reco_db import MovieRecoDb
 from src.letterboxd.movie_importer.movie_importer import import_movie, ImportResult
+from src.utils import get_otel_log_handler
+
+_logger = get_otel_log_handler("Letterboxd.CsvImporter")
 
 
 class CsvImporter:
     def __init__(self, file_path: Path):
-        self._logger = log_factory("Letterboxd.CsvImporter", unique_handler_types=True)
+        self._logger = _logger
         self._logger.info("Starting...")
 
         if not file_path.exists():
@@ -37,7 +40,12 @@ class CsvImporter:
 
         self.file_path = file_path
 
+    @_logger.trace("CsvImporter.run")
     def run(self):
+        span = trace.get_current_span()
+        if span.is_recording():
+            span.set_attribute("file.path", str(self.file_path))
+
         self._logger.info(f"Importing file: {self.file_path}")
 
         failed = []

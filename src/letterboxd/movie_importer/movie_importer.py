@@ -1,12 +1,13 @@
 from datetime import datetime
 from enum import Enum
 
-from simple_log_factory.log_factory import log_factory
+from opentelemetry import trace
 
 from src.core.movie_reco_db import MovieRecoDb
 from src.core.requesters import identify_movie
+from src.utils import get_otel_log_handler
 
-_logger = log_factory("MovieImporter", unique_handler_types=True)
+_logger = get_otel_log_handler("MovieImporter")
 _db = MovieRecoDb()
 
 class ImportResult(Enum):
@@ -15,11 +16,20 @@ class ImportResult(Enum):
     FAILED = "FAILED"
 
 
+@_logger.trace("import_movie")
 def import_movie(
         letterboxd_uri: str,
         watch_date: datetime,
         title: str,
         year: int) -> ImportResult:
+    span = trace.get_current_span()
+    if span.is_recording():
+        span.set_attributes({
+            "media.title": title,
+            "media.year": year,
+            "media.letterboxd_uri": letterboxd_uri,
+        })
+
     _logger.info(f"Processing {title} ({year} / {letterboxd_uri})...")
 
     watched = _db.get(letterboxd_uri, search_prop="letterboxd_uri")

@@ -5,10 +5,11 @@ from datetime import datetime
 from typing import Optional, List
 
 import psycopg2
+from opentelemetry import trace
 from psycopg2.pool import SimpleConnectionPool
-from simple_log_factory.log_factory import log_factory
 
 from src.core.movie_reco_models import WatchedMovie
+from src.utils import get_otel_log_handler
 
 
 def _require_env(name: str) -> str:
@@ -34,10 +35,12 @@ _db_pool: SimpleConnectionPool = SimpleConnectionPool(
     dbname=dbname,
 )
 
+_logger = get_otel_log_handler("MovieRecoDb")
+
 
 class MovieRecoDb:
     def __init__(self):
-        self._logger = log_factory("MovieRecoDb", unique_handler_types=True)
+        self._logger = _logger
         self._ensure_table_exists()
 
     @contextmanager
@@ -48,6 +51,7 @@ class MovieRecoDb:
         finally:
             _db_pool.putconn(conn)
 
+    @_logger.trace("MovieRecoDb._ensure_table_exists")
     def _ensure_table_exists(self) -> None:
         try:
             with self._get_connection() as conn:
@@ -75,8 +79,17 @@ CREATE TABLE IF NOT EXISTS watched (
             self._logger.error(error_message)
             raise RuntimeError(error_message) from e
 
+    @_logger.trace("MovieRecoDb.add")
     def add(self, letterboxd_uri: str, watch_date: datetime, title: str,
             release_year: int, genres: List[str], cache_id: uuid.UUID) -> WatchedMovie:
+        span = trace.get_current_span()
+        if span.is_recording():
+            span.set_attributes({
+                "db.table": "watched",
+                "db.operation": "insert",
+                "media.letterboxd_uri": letterboxd_uri,
+            })
+
         try:
             with self._get_connection() as conn:
                 with conn.cursor() as cursor:
@@ -103,7 +116,16 @@ CREATE TABLE IF NOT EXISTS watched (
             self._logger.error(error_message)
             raise RuntimeError(error_message) from e
 
+    @_logger.trace("MovieRecoDb.get")
     def get(self, value, search_prop: str = "cache_id") -> Optional[WatchedMovie]:
+        span = trace.get_current_span()
+        if span.is_recording():
+            span.set_attributes({
+                "db.table": "watched",
+                "db.operation": "select",
+                "db.search_prop": search_prop,
+            })
+
         try:
             with self._get_connection() as conn:
                 with conn.cursor() as cursor:

@@ -3,10 +3,11 @@ from datetime import datetime
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
+from opentelemetry import trace
 from pydantic import BaseModel
-from simple_log_factory.log_factory import log_factory
 
 from src.letterboxd.movie_importer.movie_importer import import_movie, ImportResult
+from src.utils import get_otel_log_handler
 
 
 class WatchedMovieRequest(BaseModel):
@@ -21,8 +22,10 @@ app = FastAPI(
     version="1.0.0"
 )
 
-logger = log_factory("WatchedMovieAPI", unique_handler_types=True)
+logger = get_otel_log_handler("API", fastapi_app=app)
 
+
+@logger.trace("_is_request_valid")
 def _is_request_valid(item: WatchedMovieRequest) -> bool:
     return (
             item is not None
@@ -36,13 +39,23 @@ def _is_request_valid(item: WatchedMovieRequest) -> bool:
     )
 
 @app.post("/api/watched")
+@logger.trace("/api/watched")
 async def watched(
         item: WatchedMovieRequest,
         request: Request):
+    span = trace.get_current_span()
+    if span.is_recording():
+        span.set_attributes({
+            "http.method": request.method,
+            "http.client_ip": request.client.host,
+            "media.title": item.title,
+            "media.year": item.year,
+            "media.letterboxd_uri": item.letterboxd_uri,
+        })
+
     if not _is_request_valid(item):
         raise HTTPException(status_code=400, detail=f"Invalid request: {item}")
 
-    # Get the client's IP address
     client_ip = request.client.host
 
     logger.info(f"Received request from {client_ip}: {item}")
@@ -78,20 +91,18 @@ async def watched(
 
 
 @app.get("/api/health")
+#@logger.trace("/api/health")
 async def health_check():
     """
-    Health check endpoint that verifies guessit is working correctly.
-
-    Tests two specific filenames and checks if guessit correctly identifies them.
+    Health check endpoint.
 
     Returns:
-        200 with a "healthy" message if both tests pass
-        400 with a "broken" message if any test fails
+        200 with a "healthy" message if the service is running
+        500 with a "broken" message if any error occurs
     """
     try:
         return JSONResponse(content={"message": "healthy"}, status_code=200)
     except Exception as e:
-        # If any error occurs, return a broken status
         error_detail = f"Health check failed: {str(e)}"
         traceback.print_exc()
         return JSONResponse(content={"message": "broken", "error": error_detail}, status_code=500)
